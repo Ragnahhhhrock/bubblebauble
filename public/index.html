@@ -72,6 +72,9 @@ input:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;align-items:center;width:100%}
 button.ghost{background:transparent;box-shadow:none;border:2px solid var(--gold);color:var(--gold)}
 button:disabled{opacity:.6;cursor:default}
+a.cocoa{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 20px;border-radius:24px;background:linear-gradient(#8a4b2a,#5a2e17);color:#fff3dc;font:800 16px Nunito,sans-serif;text-decoration:none;border:2px dashed #fff3dc;box-shadow:0 4px 0 #2e1509,0 0 18px rgba(255,210,74,.25)}
+a.cocoa:active{transform:translateY(2px);box-shadow:0 2px 0 #2e1509}
+a.cocoa:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
 .board{list-style:none;margin:0;padding:0;width:min(100%,320px);display:grid;gap:4px;text-align:left}
 .board li{display:grid;grid-template-columns:2em minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:5px 10px;border-radius:10px;background:rgba(255,255,255,.08);font:800 15px Nunito,sans-serif}
 .board li.me{background:var(--gold);color:#4a0612}
@@ -95,6 +98,7 @@ button:disabled{opacity:.6;cursor:default}
     <p class="small" id="best"></p>
     <p class="small" id="total"></p>
     <p class="small" id="world"></p>
+    <a class="cocoa" href="https://buy.stripe.com/3cI4gr1PPfcx4gU0UcaAw0c" target="_blank" rel="noopener"><span aria-hidden="true">☕🎄</span> Buy me a Cup of Hot Cocoa – $5</a>
   </div></div>
   <div class="ov" id="ovPause" hidden>
     <h2>Paused</h2>

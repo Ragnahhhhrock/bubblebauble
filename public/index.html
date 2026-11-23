@@ -72,18 +72,25 @@ button:disabled{opacity:.6;cursor:default}
 .board .lv{opacity:.7;font-weight:600;font-size:13px}
 .board .sc{font-variant-numeric:tabular-nums;text-align:right}
 #mute{position:absolute;top:6px;left:50%;transform:translateX(-50%);min-height:44px;width:44px;padding:0;background:transparent;box-shadow:none;font-size:20px;opacity:.8}
+#pause{position:absolute;top:6px;left:calc(50% - 52px);transform:translateX(-50%);min-height:44px;width:44px;padding:0;background:transparent;box-shadow:none;font-size:20px;opacity:.8}
 </style>
 </head>
 <body>
 <div id="wrap"><div id="game">
   <canvas id="c"></canvas>
   <button id="mute" aria-label="Toggle sound">♪</button>
+  <button id="pause" aria-label="Pause game" hidden>❚❚</button>
   <div class="ov lite" id="ovTitle"><div class="panel">
     <h1>Bubble Bauble</h1>
     <p>Drag to aim, release to fire. Match 3 or more baubles of a colour to shatter them. Tap the gift sack to swap.</p>
     <div class="row"><button id="play">Play</button><button id="hs" class="ghost">High scores</button></div>
     <p class="small" id="best"></p>
   </div></div>
+  <div class="ov" id="ovPause" hidden>
+    <h2>Paused</h2>
+    <div class="row"><button id="resume">Resume</button><button id="restart" class="ghost">Restart</button></div>
+    <p class="small">Press P or Esc to resume</p>
+  </div>
   <div class="ov" id="ovWin" hidden>
     <h2 id="winT">Level cleared!</h2>
     <p id="winS"></p>
@@ -118,7 +125,7 @@ const $=id=>document.getElementById(id);
 const COLS=8,MINA=-Math.PI+0.18,MAXA=-0.18;
 const COLORS=[['#ff3b4f','#7a0612'],['#ffd24a','#8f5f00'],['#35d06a','#0b5426'],['#e6edf7','#5d6a84'],['#4a9bff','#0c3277'],['#c065ff','#4a0f7a']];
 let W,H,R,RH,DPR,SP,sprites=[],grid=[],top0,dropRows=0,shots=0,shotsPerDrop=6,score=0,level=1,nColors=3;
-let cur=0,nxt=1,shot=null,aim=-Math.PI/2,aiming=false,parts=[],falls=[],snow=[],state='title',deadY,lx,ly,muted=false,t=0;
+let cur=0,nxt=1,shot=null,aim=-Math.PI/2,aiming=false,parts=[],falls=[],snow=[],state='title',deadY,lx,ly,muted=false,t=0,paused=false;
 let demo=false,botT=null,botWait=1,botHold=0,demoN=0;const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
 let loadT=0,LOAD=.32,cheerT=0,bubbles=[],danger=false,celebrate=false,sad=false;
 const LINES={pop:['Nice!','Pop!','Jolly good!','Sparkly!','Ooh!'],big:['Ho ho ho!','Avalanche!','Brilliant!','Wow!','Magic!'],drop:['Watch out!','Uh oh!','It\'s coming down!'],danger:['Careful!','Eek!','Hurry!'],win:['Hooray!','Merry Christmas!','You did it!'],lose:['Oh no…','Humbug!'],start:['Let\'s go!','Load her up!','Ready!']};
@@ -172,7 +179,7 @@ function startLevel(n,isDemo){
   for(let r=0;r<rows;r++)grid.push(Array.from({length:rowLen(r)},()=>Math.random()*nColors|0));
   for(let k=0;k<2;k++)each((r,c)=>{if(Math.random()<.4){const nb=nbrs(r,c).filter(([a,b])=>get(a,b)>=0);if(nb.length){const[a,b]=nb[Math.random()*nb.length|0];grid[r][c]=grid[a][b]}}});
   cur=pick();nxt=pick();state='play';loadT=0;cheerT=0;bubbles=[];danger=false;celebrate=false;sad=false;
-  say('L','start');demo=!!isDemo;botT=null;
+  say('L','start');demo=!!isDemo;botT=null;paused=false;$('ovPause').hidden=true;
   if(!demo)['ovTitle','ovWin','ovLose'].forEach(id=>$(id).hidden=true);
 }
 function startDemo(){demoN++;startLevel([4,5,6,5,4,6][demoN%6],true);botWait=1.4}
@@ -334,7 +341,8 @@ const music=new Audio(TRACKS[0]);music.preload='auto';music.volume=.7;
 music.addEventListener('ended',()=>{tk=(tk+1)%TRACKS.length;music.src=TRACKS[tk];music.play().catch(()=>{})});
 const musicOn=()=>{music.muted=muted;if(music.paused)music.play().catch(()=>{})};
 const musicOff=()=>{music.pause();tk=0;music.src=TRACKS[0]};
-document.addEventListener('visibilitychange',()=>{if(document.hidden)music.pause();else if(state==='play'&&!demo)musicOn()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){music.pause();setPause(true)}else if(state==='play'&&!demo&&!paused)musicOn()});
+function setPause(p){if(p&&(state!=='play'||demo))return;paused=p;aiming=false;$('ovPause').hidden=!p;if(p)music.pause();else musicOn()}
 // audio
 let ac=null;
 function unlock(){if(!ac){try{ac=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}if(ac&&ac.state==='suspended')ac.resume().catch(()=>{})}
@@ -354,18 +362,22 @@ function snd(k){
 const nX=()=>lx-R*3.4,nY=()=>ly+R*0.9;
 function pos(e){const b=box.getBoundingClientRect();return[e.clientX-b.left,e.clientY-b.top]}
 function setAim(x,y){let a=Math.atan2(y-ly,x-lx);if(a>0)a=x<lx?MINA:MAXA;aim=Math.max(MINA,Math.min(MAXA,a))}
-cv.addEventListener('pointerdown',e=>{unlock();if(state!=='play'||demo)return;const[x,y]=pos(e);
+cv.addEventListener('pointerdown',e=>{unlock();if(state!=='play'||demo||paused)return;const[x,y]=pos(e);
   if(Math.hypot(x-nX(),y-nY())<R*1.8){if(loadT<=0){[cur,nxt]=[nxt,cur];loadT=.24;snd('clink')}return}
   aiming=true;setAim(x,y);try{cv.setPointerCapture(e.pointerId)}catch(_){}});
 cv.addEventListener('pointermove',e=>{if(aiming){const[x,y]=pos(e);setAim(x,y)}});
 cv.addEventListener('pointerup',e=>{if(!aiming)return;aiming=false;const[,y]=pos(e);if(y>ly+R*1.2)return;fire()});
 cv.addEventListener('pointercancel',()=>aiming=false);
-window.addEventListener('keydown',e=>{if(state!=='play'||demo)return;
+window.addEventListener('keydown',e=>{if(e.key==='p'||e.key==='P'||e.key==='Escape'){if(state==='play'&&!demo){e.preventDefault();setPause(!paused)}return}
+  if(state!=='play'||demo||paused)return;
   if(e.key==='ArrowLeft')aim=Math.max(MINA,aim-.06);if(e.key==='ArrowRight')aim=Math.min(MAXA,aim+.06);
   if(e.key===' '){e.preventDefault();unlock();fire()}if(e.key==='Shift'&&loadT<=0){[cur,nxt]=[nxt,cur];loadT=.24}});
 $('play').onclick=()=>{unlock();score=0;startLevel(1);musicOn()};
 $('next').onclick=()=>{unlock();startLevel(level+1);musicOn()};
 $('retry').onclick=()=>{unlock();score=0;startLevel(1);musicOn()};
+$('pause').onclick=e=>{e.stopPropagation();setPause(true)};
+$('resume').onclick=()=>setPause(false);
+$('restart').onclick=()=>{unlock();score=0;startLevel(1);musicOn()};
 $('mute').onclick=e=>{e.stopPropagation();muted=!muted;music.muted=muted;$('mute').style.opacity=muted?.35:.8};
 document.addEventListener('gesturestart',e=>e.preventDefault());
 
@@ -526,7 +538,10 @@ function draw(){
   drawLauncher();if(demo)drawDemoTag();else drawHud();
 }
 let last=performance.now();
-function loop(now){const dt=Math.min(.033,(now-last)/1000);last=now;update(dt);draw();requestAnimationFrame(loop)}
+let pbShown=null;
+function loop(now){const dt=Math.min(.033,(now-last)/1000);last=now;if(!paused)update(dt);draw();
+  const show=state==='play'&&!demo;if(show!==pbShown){pbShown=show;$('pause').hidden=!show}
+  requestAnimationFrame(loop)}
 new ResizeObserver(resize).observe(box);resize();
 if(!CanvasRenderingContext2D.prototype.roundRect)CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h){this.rect(x,y,w,h)};
 // demo board behind the title screen

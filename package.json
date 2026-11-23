@@ -1,0 +1,13 @@
+{
+  "name": "bubblebauble",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Bubble Bauble: a Christmas puzzle bobble game for mobile browsers",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "bubblebauble",
+  "main": "worker/index.js",
+  "compatibility_date": "2025-11-01",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "SCOREBOARD", "class_name": "Scoreboard" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Scoreboard"] }],
+  "routes": [
+    { "pattern": "bubblebauble.com", "custom_domain": true },
+    { "pattern": "www.bubblebauble.com", "custom_domain": true }
+  ],
+  "observability": { "enabled": true }
+}

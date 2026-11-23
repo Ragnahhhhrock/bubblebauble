@@ -49,6 +49,8 @@ html,body{margin:0;height:100%;background:#060b1c;color:var(--ink);overflow:hidd
 canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
 .ov{position:absolute;inset:0;overflow:auto;display:flex;flex-direction:column;align-items:center;justify-content:safe center;gap:14px;background:rgba(6,11,28,.8);text-align:center;padding:24px;backdrop-filter:blur(3px)}
 [hidden]{display:none!important}
+.ov.lite{background:rgba(6,11,28,.22);backdrop-filter:none}
+.panel{display:flex;flex-direction:column;align-items:center;gap:14px;width:min(100%,320px);padding:18px 16px;border-radius:24px;background:rgba(6,11,28,.68);border:2px solid rgba(255,210,74,.3);box-shadow:0 10px 40px rgba(0,0,0,.4)}
 h1{font:700 clamp(40px,13vw,64px)/1.05 'Mountains of Christmas',serif;margin:0;color:var(--gold);text-wrap:balance;text-shadow:0 3px 0 #7a0612}
 h2{font:700 clamp(32px,10vw,46px)/1.05 'Mountains of Christmas',serif;margin:0;color:var(--gold)}
 p{margin:0;font-size:16px;line-height:1.5;max-width:30ch;opacity:.92}
@@ -76,13 +78,12 @@ button:disabled{opacity:.6;cursor:default}
 <div id="wrap"><div id="game">
   <canvas id="c"></canvas>
   <button id="mute" aria-label="Toggle sound">♪</button>
-  <div class="ov" id="ovTitle">
+  <div class="ov lite" id="ovTitle"><div class="panel">
     <h1>Bubble Bauble</h1>
-    <p>Drag to aim, release to fire. Match 3 or more baubles of the same colour to shatter them.</p>
-    <p class="small">Tap the bauble on the left to swap. Drag below the cannon to cancel a shot.</p>
+    <p>Drag to aim, release to fire. Match 3 or more baubles of a colour to shatter them. Tap the gift sack to swap.</p>
     <div class="row"><button id="play">Play</button><button id="hs" class="ghost">High scores</button></div>
     <p class="small" id="best"></p>
-  </div>
+  </div></div>
   <div class="ov" id="ovWin" hidden>
     <h2 id="winT">Level cleared!</h2>
     <p id="winS"></p>
@@ -118,6 +119,7 @@ const COLS=8,MINA=-Math.PI+0.18,MAXA=-0.18;
 const COLORS=[['#ff3b4f','#7a0612'],['#ffd24a','#8f5f00'],['#35d06a','#0b5426'],['#e6edf7','#5d6a84'],['#4a9bff','#0c3277'],['#c065ff','#4a0f7a']];
 let W,H,R,RH,DPR,SP,sprites=[],grid=[],top0,dropRows=0,shots=0,shotsPerDrop=6,score=0,level=1,nColors=3;
 let cur=0,nxt=1,shot=null,aim=-Math.PI/2,aiming=false,parts=[],falls=[],snow=[],state='title',deadY,lx,ly,muted=false,t=0;
+let demo=false,botT=null,botWait=1,botHold=0,demoN=0;const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
 let loadT=0,LOAD=.32,cheerT=0,bubbles=[],danger=false,celebrate=false,sad=false;
 const LINES={pop:['Nice!','Pop!','Jolly good!','Sparkly!','Ooh!'],big:['Ho ho ho!','Avalanche!','Brilliant!','Wow!','Magic!'],drop:['Watch out!','Uh oh!','It\'s coming down!'],danger:['Careful!','Eek!','Hurry!'],win:['Hooray!','Merry Christmas!','You did it!'],lose:['Oh no…','Humbug!'],start:['Let\'s go!','Load her up!','Ready!']};
 const rnd=a=>a[Math.random()*a.length|0];
@@ -163,16 +165,17 @@ function each(f){for(let r=0;r<grid.length;r++)for(let c=0;c<grid[r].length;c++)
 function present(){const s=new Set();each((r,c,v)=>s.add(v));return[...s]}
 function pick(){const p=present();const a=p.length?p:[...Array(nColors).keys()];return a[Math.random()*a.length|0]}
 
-function startLevel(n){
+function startLevel(n,isDemo){
   level=n;nColors=Math.min(6,3+Math.floor((n-1)/2));
   const rows=Math.min(10,4+n);shotsPerDrop=Math.max(3,7-Math.floor((n-1)/2));
   grid=[];dropRows=0;shots=0;shot=null;parts=[];falls=[];
   for(let r=0;r<rows;r++)grid.push(Array.from({length:rowLen(r)},()=>Math.random()*nColors|0));
   for(let k=0;k<2;k++)each((r,c)=>{if(Math.random()<.4){const nb=nbrs(r,c).filter(([a,b])=>get(a,b)>=0);if(nb.length){const[a,b]=nb[Math.random()*nb.length|0];grid[r][c]=grid[a][b]}}});
   cur=pick();nxt=pick();state='play';loadT=0;cheerT=0;bubbles=[];danger=false;celebrate=false;sad=false;
-  say('L','start');
-  ['ovTitle','ovWin','ovLose'].forEach(id=>$(id).hidden=true);
+  say('L','start');demo=!!isDemo;botT=null;
+  if(!demo)['ovTitle','ovWin','ovLose'].forEach(id=>$(id).hidden=true);
 }
+function startDemo(){demoN++;startLevel([4,5,6,5,4,6][demoN%6],true);botWait=1.4}
 
 function hitAt(x,y){
   if(y-R<=ceilY())return true;
@@ -193,14 +196,53 @@ function stepShot(dt){
     if(hitAt(shot.x,shot.y)){land();return}
   }
 }
-function land(){
-  let bestC=null,bd=1e9;const r0=Math.round((shot.y-cy(0))/RH);
+function findCell(x,y){
+  let bestC=null,bd=1e9;const r0=Math.round((y-cy(0))/RH);
   for(let r=Math.max(0,r0-2);r<=r0+2;r++)for(let c=0;c<rowLen(r);c++){
     if(get(r,c)>=0)continue;
     if(r>0&&!nbrs(r,c).some(([a,b])=>get(a,b)>=0))continue;
-    const d=Math.hypot(cx(r,c)-shot.x,cy(r)-shot.y);if(d<bd){bd=d;bestC=[r,c]}
+    const d=Math.hypot(cx(r,c)-x,cy(r)-y);if(d<bd){bd=d;bestC=[r,c]}
   }
-  if(!bestC){const r=Math.max(0,r0);bestC=[r,Math.max(0,Math.min(rowLen(r)-1,Math.round((shot.x-R-(r%2?R:0))/(2*R))))]}
+  if(!bestC){const r=Math.max(0,r0);bestC=[r,Math.max(0,Math.min(rowLen(r)-1,Math.round((x-R-(r%2?R:0))/(2*R))))]}
+  return bestC;
+}
+// ---- demo bot: simulates each possible shot and plays the best one
+function trace(a,color,maxRow){
+  let x=lx,y=ly,vx=Math.cos(a),vy=Math.sin(a);const step=R*.35;
+  for(let i=0;i<900;i++){
+    x+=vx*step;y+=vy*step;
+    if(x<R){x=R;vx*=-1}if(x>W-R){x=W-R;vx*=-1}
+    if(!hitAt(x,y))continue;
+    const[r,c]=findCell(x,y);if(get(r,c)>=0)return null;
+    const len=grid.length;setCell(r,c,color);const m=flood(r,c);let sc;
+    if(m.length>=3){m.forEach(([p,q])=>grid[p][q]=-1);const f=floating().length;m.forEach(([p,q])=>grid[p][q]=color);sc=50+m.length*10+f*f*10}
+    else sc=(m.length===2?6:0)-Math.max(0,r-maxRow)*4;
+    grid[r][c]=-1;while(grid.length>len&&grid[grid.length-1].every(v=>v<0))grid.pop();
+    return sc;
+  }
+  return null;
+}
+function plan(){
+  let best=null;const maxRow=grid.length-1;
+  for(const w of[0,1])for(let a=MINA+.03;a<=MAXA-.03;a+=.016){
+    const sc=trace(a,w?nxt:cur,maxRow);if(sc==null)continue;
+    const v=sc+Math.random()*30-(w?4:0);if(!best||v>best.v)best={v,a,w};
+  }
+  return best;
+}
+function botStep(dt){
+  if(!demo||state!=='play'||reduce||shot||loadT>0)return;
+  if(botT==null){
+    botWait-=dt;if(botWait>0)return;
+    const p=plan();
+    if(p){if(p.w){[cur,nxt]=[nxt,cur];loadT=.24;}botT=p.a}else botT=-Math.PI/2+(Math.random()-.5)*.8;
+    botHold=.45;return;
+  }
+  const d=botT-aim;aim+=Math.sign(d)*Math.min(Math.abs(d),1.7*dt);
+  if(Math.abs(botT-aim)<.004){botHold-=dt;if(botHold<=0){fire();botT=null;botWait=.9}}
+}
+function land(){
+  const bestC=findCell(shot.x,shot.y);
   const[r,c]=bestC;setCell(r,c,shot.c);shot=null;
   const m=flood(r,c);
   if(m.length>=3){
@@ -229,6 +271,12 @@ function floating(){
   const out=[];each((r,c)=>{if(!seen.has(r+','+c))out.push([r,c])});return out;
 }
 function check(){
+  if(demo){
+    if(!present().length){state='demoend';celebrate=true;say('C','win');setTimeout(startDemo,2400);return}
+    let lose=false;each(r=>{if(cy(r)+R*0.8>deadY)lose=true});
+    if(lose){state='demoend';sad=true;setTimeout(startDemo,1600)}
+    return;
+  }
   if(!present().length){state='won';snd('win');saveBest();celebrate=true;say('C','win');say('L','win');
     setTimeout(()=>{$('winT').textContent=`Level ${level} cleared!`;$('winS').textContent=`Score: ${score}`;$('ovWin').hidden=false},700);return}
   let lose=false;each(r=>{if(cy(r)+R*0.8>deadY)lose=true});
@@ -286,13 +334,14 @@ const music=new Audio(TRACKS[0]);music.preload='auto';music.volume=.7;
 music.addEventListener('ended',()=>{tk=(tk+1)%TRACKS.length;music.src=TRACKS[tk];music.play().catch(()=>{})});
 const musicOn=()=>{music.muted=muted;if(music.paused)music.play().catch(()=>{})};
 const musicOff=()=>{music.pause();tk=0;music.src=TRACKS[0]};
-document.addEventListener('visibilitychange',()=>{if(document.hidden)music.pause();else if(state==='play')musicOn()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)music.pause();else if(state==='play'&&!demo)musicOn()});
 // audio
 let ac=null;
 function unlock(){if(!ac){try{ac=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}if(ac&&ac.state==='suspended')ac.resume().catch(()=>{})}
 function tone(f,d,type,v,t0=0){if(!ac||muted)return;const tt=ac.currentTime+t0,o=ac.createOscillator(),g=ac.createGain();
   o.type=type;o.frequency.setValueAtTime(f,tt);g.gain.setValueAtTime(v,tt);g.gain.exponentialRampToValueAtTime(.001,tt+d);o.connect(g).connect(ac.destination);o.start(tt);o.stop(tt+d)}
 function snd(k){
+  if(demo)return;
   if(k==='shoot')tone(660,.1,'triangle',.07);
   if(k==='clink'){tone(2093,.18,'sine',.07);tone(3136,.12,'sine',.03)}
   if(k==='pop')[1319,1568,2093].forEach((f,i)=>tone(f,.25,'sine',.09,i*.05));
@@ -305,13 +354,13 @@ function snd(k){
 const nX=()=>lx-R*3.4,nY=()=>ly+R*0.9;
 function pos(e){const b=box.getBoundingClientRect();return[e.clientX-b.left,e.clientY-b.top]}
 function setAim(x,y){let a=Math.atan2(y-ly,x-lx);if(a>0)a=x<lx?MINA:MAXA;aim=Math.max(MINA,Math.min(MAXA,a))}
-cv.addEventListener('pointerdown',e=>{unlock();if(state!=='play')return;const[x,y]=pos(e);
+cv.addEventListener('pointerdown',e=>{unlock();if(state!=='play'||demo)return;const[x,y]=pos(e);
   if(Math.hypot(x-nX(),y-nY())<R*1.8){if(loadT<=0){[cur,nxt]=[nxt,cur];loadT=.24;snd('clink')}return}
   aiming=true;setAim(x,y);try{cv.setPointerCapture(e.pointerId)}catch(_){}});
 cv.addEventListener('pointermove',e=>{if(aiming){const[x,y]=pos(e);setAim(x,y)}});
 cv.addEventListener('pointerup',e=>{if(!aiming)return;aiming=false;const[,y]=pos(e);if(y>ly+R*1.2)return;fire()});
 cv.addEventListener('pointercancel',()=>aiming=false);
-window.addEventListener('keydown',e=>{if(state!=='play')return;
+window.addEventListener('keydown',e=>{if(state!=='play'||demo)return;
   if(e.key==='ArrowLeft')aim=Math.max(MINA,aim-.06);if(e.key==='ArrowRight')aim=Math.min(MAXA,aim+.06);
   if(e.key===' '){e.preventDefault();unlock();fire()}if(e.key==='Shift'&&loadT<=0){[cur,nxt]=[nxt,cur];loadT=.24}});
 $('play').onclick=()=>{unlock();score=0;startLevel(1);musicOn()};
@@ -339,6 +388,10 @@ function drawCeiling(){
     ctx.fillStyle=lights[i%4];ctx.globalAlpha=on?1:.35;ctx.beginPath();ctx.arc(x+R/2,y+R*.22,R*.13,0,7);ctx.fill();
     if(on){ctx.globalAlpha=.25;ctx.beginPath();ctx.arc(x+R/2,y+R*.22,R*.35,0,7);ctx.fill()}}
   ctx.globalAlpha=1;
+}
+function drawDemoTag(){
+  ctx.fillStyle='rgba(255,210,74,.9)';ctx.font=`800 ${Math.round(top0*.34)}px Nunito,sans-serif`;ctx.textBaseline='middle';ctx.textAlign='center';
+  ctx.fillText('DEMO',W/2,top0/2);
 }
 function drawHud(){
   ctx.fillStyle='#fff';ctx.font=`800 ${Math.round(top0*.36)}px Nunito,sans-serif`;ctx.textBaseline='middle';
@@ -450,6 +503,7 @@ function drawGuide(){
 function update(dt){
   t+=dt;
   for(const s of snow){s.y+=s.v*dt;if(s.y>H){s.y=-4;s.x=Math.random()*W}}
+  botStep(dt);
   if(shot)stepShot(dt);
   loadT=Math.max(0,loadT-dt);cheerT=Math.max(0,cheerT-dt);
   for(const b of bubbles)b.life-=dt;bubbles=bubbles.filter(b=>b.life>0);
@@ -467,16 +521,16 @@ function draw(){
     if(p.spark){ctx.beginPath();ctx.arc(p.x,p.y,R*.08,0,7);ctx.fill()}
     else{ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.rot);ctx.beginPath();ctx.moveTo(0,-R*.25);ctx.lineTo(R*.15,R*.15);ctx.lineTo(-R*.15,R*.1);ctx.fill();ctx.restore()}}
   ctx.globalAlpha=1;
-  if(aiming&&!shot&&state==='play')drawGuide();
+  if((aiming||(demo&&botT!=null))&&!shot&&state==='play')drawGuide();
   if(shot)drawB(shot.c,shot.x,shot.y);
-  drawLauncher();drawHud();
+  drawLauncher();if(demo)drawDemoTag();else drawHud();
 }
 let last=performance.now();
 function loop(now){const dt=Math.min(.033,(now-last)/1000);last=now;update(dt);draw();requestAnimationFrame(loop)}
 new ResizeObserver(resize).observe(box);resize();
 if(!CanvasRenderingContext2D.prototype.roundRect)CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h){this.rect(x,y,w,h)};
 // demo board behind the title screen
-startLevel(1);state='title';$('ovTitle').hidden=false;
+startDemo();$('ovTitle').hidden=false;
 requestAnimationFrame(loop);
 }
 </script>

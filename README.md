@@ -2,6 +2,7 @@
 
 A Christmas puzzle bobble game for mobile browsers, live at **https://bubblebauble.com**.
 Aim, fire and match festive baubles. Elf mascots load the cannon and cheer you on, and a global high score table keeps score.
+The home page runs a self-playing demo (a bot that simulates every shot and plays the best one) behind the title screen until you press Play.
 
 Another [Mal Gordon](https://malgordon.com) creation. Created as part of the [30products30days.com](https://30products30days.com) challenge.
 

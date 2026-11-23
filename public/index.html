@@ -94,6 +94,7 @@ button:disabled{opacity:.6;cursor:default}
     <div class="row"><button id="play">Play</button><button id="hs" class="ghost">High scores</button></div>
     <p class="small" id="best"></p>
     <p class="small" id="total"></p>
+    <p class="small" id="world"></p>
   </div></div>
   <div class="ov" id="ovPause" hidden>
     <h2>Paused</h2>
@@ -145,7 +146,21 @@ try{best=+localStorage.getItem('bb_best')||0;bestLevel=+localStorage.getItem('bb
 const fmt=n=>n.toLocaleString('en-AU');
 const showBest=()=>{$('best').textContent=best?`Best score: ${fmt(best)} · Highest level: ${bestLevel||1}`:'';
   $('total').textContent=totalPopped?`Total baubles popped: ${fmt(totalPopped)}`:''};showBest();
-function addPopped(n){if(demo||n<=0)return;popped+=n;totalPopped+=n;try{localStorage.setItem('bb_total',totalPopped)}catch(e){}showBest()}
+// live worldwide tally (Cloudflare Worker at /api/tally): pops are batched and flushed every few seconds
+let pending=0,worldTotal=null,flushing=false;
+try{pending=+localStorage.getItem('bb_pending')||0}catch(e){}
+const showWorld=()=>{$('world').textContent=worldTotal==null?'':`Baubles popped worldwide: ${fmt(worldTotal)}`};
+function addPopped(n){if(demo||n<=0)return;popped+=n;totalPopped+=n;pending+=n;
+  try{localStorage.setItem('bb_total',totalPopped);localStorage.setItem('bb_pending',pending)}catch(e){}showBest()}
+async function flushTally(){
+  if(flushing||pending<=0)return;flushing=true;const n=Math.min(pending,3000);
+  try{const r=await fetch('/api/tally',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({n}),keepalive:true});
+    if(r.ok){const j=await r.json();pending-=n;worldTotal=j.total;try{localStorage.setItem('bb_pending',pending)}catch(e){}showWorld()}}
+  catch(e){}finally{flushing=false}}
+async function pollTally(){
+  if(document.hidden||$('ovTitle').hidden)return;
+  try{const r=await fetch('/api/tally',{cache:'no-store'});if(r.ok){worldTotal=(await r.json()).total+pending;showWorld()}}catch(e){}}
+setInterval(flushTally,5000);setInterval(pollTally,10000);pollTally();flushTally();
 function newGame(){score=0;popped=0;startLevel(1);musicOn()}
 
 function resize(){
@@ -323,7 +338,7 @@ async function loadBoard(el,mine){
   try{const r=await fetch(API,{cache:'no-store'});if(!r.ok)throw 0;renderBoard(el,(await r.json()).scores||[],mine)}
   catch(e){li.textContent='Score table unavailable right now.'}
 }
-function showEnd(){
+function showEnd(){flushTally();
   run={score,level,popped};submitted=false;myId=null;
   $('loseS').textContent=`The baubles reached the mantel. Score: ${fmt(score)} · Level ${level} · Baubles popped: ${fmt(popped)}`;
   $('entry').hidden=score<=0;$('msg').textContent='';$('save').disabled=false;
@@ -343,7 +358,7 @@ $('entry').addEventListener('submit',async e=>{
   }catch(err){$('save').disabled=false;$('msg').textContent=err.message||'Could not reach the score table. Try again.'}
 });
 $('hs').onclick=()=>{$('ovTitle').hidden=true;$('ovHS').hidden=false;loadBoard($('board2'))};
-$('back').onclick=()=>{$('ovHS').hidden=true;$('ovTitle').hidden=false};
+$('back').onclick=()=>{$('ovHS').hidden=true;$('ovTitle').hidden=false;pollTally()};
 function saveBest(){if(score>best){best=score;try{localStorage.setItem('bb_best',best)}catch(e){}}
   if(!demo&&level>bestLevel){bestLevel=level;try{localStorage.setItem('bb_bestlevel',bestLevel)}catch(e){}}showBest()}
 function boom(x,y,ci){for(let i=0;i<10;i++){const a=Math.random()*7,s=Math.random()*260+80;
@@ -356,7 +371,7 @@ const music=new Audio(TRACKS[0]);music.preload='auto';music.volume=.7;
 music.addEventListener('ended',()=>{tk=(tk+1)%TRACKS.length;music.src=TRACKS[tk];music.play().catch(()=>{})});
 const musicOn=()=>{music.muted=muted;if(music.paused)music.play().catch(()=>{})};
 const musicOff=()=>{music.pause();tk=0;music.src=TRACKS[0]};
-document.addEventListener('visibilitychange',()=>{if(document.hidden){music.pause();setPause(true)}else if(state==='play'&&!demo&&!paused)musicOn()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){flushTally();music.pause();setPause(true)}else if(state==='play'&&!demo&&!paused)musicOn()});
 function setPause(p){if(p&&(state!=='play'||demo))return;paused=p;aiming=false;$('ovPause').hidden=!p;if(p)music.pause();else musicOn()}
 // audio
 let ac=null;

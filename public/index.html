@@ -93,6 +93,7 @@ button:disabled{opacity:.6;cursor:default}
     <p>Drag to aim, release to fire. Match 3 or more baubles of a colour to shatter them. Tap the gift sack to swap.</p>
     <div class="row"><button id="play">Play</button><button id="hs" class="ghost">High scores</button></div>
     <p class="small" id="best"></p>
+    <p class="small" id="total"></p>
   </div></div>
   <div class="ov" id="ovPause" hidden>
     <h2>Paused</h2>
@@ -139,8 +140,13 @@ let loadT=0,LOAD=.32,cheerT=0,bubbles=[],danger=false,celebrate=false,sad=false;
 const LINES={pop:['Nice!','Pop!','Jolly good!','Sparkly!','Ooh!'],big:['Ho ho ho!','Avalanche!','Brilliant!','Wow!','Magic!'],drop:['Watch out!','Uh oh!','It\'s coming down!'],danger:['Careful!','Eek!','Hurry!'],win:['Hooray!','Merry Christmas!','You did it!'],lose:['Oh no…','Humbug!'],start:['Let\'s go!','Load her up!','Ready!']};
 const rnd=a=>a[Math.random()*a.length|0];
 function say(who,k){bubbles=bubbles.filter(b=>b.who!==who);bubbles.push({who,text:rnd(LINES[k]),life:1.4})}
-let best=0;try{best=+localStorage.getItem('bb_best')||0}catch(e){}
-const showBest=()=>{$('best').textContent=best?`Best score: ${best}`:''};showBest();
+let best=0,bestLevel=0,totalPopped=0,popped=0;
+try{best=+localStorage.getItem('bb_best')||0;bestLevel=+localStorage.getItem('bb_bestlevel')||0;totalPopped=+localStorage.getItem('bb_total')||0}catch(e){}
+const fmt=n=>n.toLocaleString('en-AU');
+const showBest=()=>{$('best').textContent=best?`Best score: ${fmt(best)} · Highest level: ${bestLevel||1}`:'';
+  $('total').textContent=totalPopped?`Total baubles popped: ${fmt(totalPopped)}`:''};showBest();
+function addPopped(n){if(demo||n<=0)return;popped+=n;totalPopped+=n;try{localStorage.setItem('bb_total',totalPopped)}catch(e){}showBest()}
+function newGame(){score=0;popped=0;startLevel(1);musicOn()}
 
 function resize(){
   const b=box.getBoundingClientRect();W=b.width;H=b.height;DPR=Math.min(2,window.devicePixelRatio||1);
@@ -264,7 +270,7 @@ function land(){
     m.forEach(([a,b])=>{boom(cx(a,b),cy(a),grid[a][b]);grid[a][b]=-1});
     const f=floating();
     f.forEach(([a,b])=>{falls.push({x:cx(a,b),y:cy(a),vx:(Math.random()-.5)*140,vy:-Math.random()*160,c:grid[a][b]});grid[a][b]=-1});
-    score+=m.length*10+(f.length?f.length*f.length*10:0);snd('pop');if(f.length)setTimeout(()=>snd('drop'),180);
+    score+=m.length*10+(f.length?f.length*f.length*10:0);addPopped(m.length+f.length);snd('pop');if(f.length)setTimeout(()=>snd('drop'),180);
     const big=f.length>=3||m.length>=6;cheerT=big?1.2:.8;say('C',big?'big':'pop');if(big)say('L','big');
   }else{
     snd('clink');shots++;
@@ -293,7 +299,7 @@ function check(){
     return;
   }
   if(!present().length){state='won';snd('win');saveBest();celebrate=true;say('C','win');say('L','win');
-    setTimeout(()=>{$('winT').textContent=`Level ${level} cleared!`;$('winS').textContent=`Score: ${score}`;$('ovWin').hidden=false},700);return}
+    setTimeout(()=>{$('winT').textContent=`Level ${level} cleared!`;$('winS').textContent=`Score: ${fmt(score)} · Baubles popped this game: ${fmt(popped)}`;$('ovWin').hidden=false},700);return}
   let lose=false;each(r=>{if(cy(r)+R*0.8>deadY)lose=true});
   let low=0;each(r=>{low=Math.max(low,cy(r))});
   const wasDanger=danger;danger=low+R>deadY-RH*1.6;if(danger&&!wasDanger&&!lose)say('C','danger');
@@ -309,7 +315,7 @@ function renderBoard(el,list,mine){
   if(!list.length){const li=document.createElement('li');li.className='none';li.textContent='No scores yet. Be the first!';el.append(li);return}
   list.slice(0,10).forEach((s,i)=>{
     const li=document.createElement('li');if(mine!=null&&s.id===mine)li.className='me';
-    for(const[c,t]of[['rk',i+1],['nm',s.name],['lv','L'+s.level],['sc',s.score]]){const sp=document.createElement('span');sp.className=c;sp.textContent=t;li.append(sp)}
+    for(const[c,t]of[['rk',i+1],['nm',s.name],['lv','Lvl '+s.level],['sc',s.score]]){const sp=document.createElement('span');sp.className=c;sp.textContent=t;li.append(sp)}
     el.append(li)});
 }
 async function loadBoard(el,mine){
@@ -318,8 +324,8 @@ async function loadBoard(el,mine){
   catch(e){li.textContent='Score table unavailable right now.'}
 }
 function showEnd(){
-  run={score,level};submitted=false;myId=null;
-  $('loseS').textContent=`The baubles reached the mantel. Score: ${score}`;
+  run={score,level,popped};submitted=false;myId=null;
+  $('loseS').textContent=`The baubles reached the mantel. Score: ${fmt(score)} · Level ${level} · Baubles popped: ${fmt(popped)}`;
   $('entry').hidden=score<=0;$('msg').textContent='';$('save').disabled=false;
   $('ovLose').hidden=false;loadBoard($('board'));
 }
@@ -338,7 +344,8 @@ $('entry').addEventListener('submit',async e=>{
 });
 $('hs').onclick=()=>{$('ovTitle').hidden=true;$('ovHS').hidden=false;loadBoard($('board2'))};
 $('back').onclick=()=>{$('ovHS').hidden=true;$('ovTitle').hidden=false};
-function saveBest(){if(score>best){best=score;try{localStorage.setItem('bb_best',best)}catch(e){}}showBest()}
+function saveBest(){if(score>best){best=score;try{localStorage.setItem('bb_best',best)}catch(e){}}
+  if(!demo&&level>bestLevel){bestLevel=level;try{localStorage.setItem('bb_bestlevel',bestLevel)}catch(e){}}showBest()}
 function boom(x,y,ci){for(let i=0;i<10;i++){const a=Math.random()*7,s=Math.random()*260+80;
   parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-80,life:.7,rot:a,c:COLORS[ci][0]})}
   for(let i=0;i<6;i++)parts.push({x,y,vx:(Math.random()-.5)*200,vy:(Math.random()-.5)*200,life:.5,rot:0,c:'#fff',spark:1})}
@@ -380,12 +387,12 @@ window.addEventListener('keydown',e=>{if(e.key==='p'||e.key==='P'||e.key==='Esca
   if(state!=='play'||demo||paused)return;
   if(e.key==='ArrowLeft')aim=Math.max(MINA,aim-.06);if(e.key==='ArrowRight')aim=Math.min(MAXA,aim+.06);
   if(e.key===' '){e.preventDefault();unlock();fire()}if(e.key==='Shift'&&loadT<=0){[cur,nxt]=[nxt,cur];loadT=.24}});
-$('play').onclick=()=>{unlock();score=0;startLevel(1);musicOn()};
+$('play').onclick=()=>{unlock();newGame()};
 $('next').onclick=()=>{unlock();startLevel(level+1);musicOn()};
-$('retry').onclick=()=>{unlock();score=0;startLevel(1);musicOn()};
+$('retry').onclick=()=>{unlock();newGame()};
 $('pause').onclick=e=>{e.stopPropagation();setPause(true)};
 $('resume').onclick=()=>setPause(false);
-$('restart').onclick=()=>{unlock();score=0;startLevel(1);musicOn()};
+$('restart').onclick=()=>{unlock();newGame()};
 $('mute').onclick=e=>{e.stopPropagation();muted=!muted;music.muted=muted;$('mute').style.opacity=muted?.35:.8};
 document.addEventListener('gesturestart',e=>e.preventDefault());
 
@@ -415,8 +422,10 @@ function drawDemoTag(){
 }
 function drawHud(){
   ctx.fillStyle='#fff';ctx.font=`800 ${Math.round(top0*.36)}px Nunito,sans-serif`;ctx.textBaseline='middle';
-  ctx.textAlign='left';ctx.fillText(`Score ${score}`,R*.6,top0/2);
-  ctx.textAlign='right';ctx.fillText(`Level ${level}`,W-R*.6,top0/2);
+  ctx.textAlign='left';ctx.fillText(`Score ${score}`,R*.6,top0*.36);
+  ctx.textAlign='right';ctx.fillText(`Level ${level}`,W-R*.6,top0*.36);
+  ctx.font=`800 ${Math.round(top0*.26)}px Nunito,sans-serif`;ctx.fillStyle='#ffd24a';
+  ctx.textAlign='left';ctx.fillText(`Popped ${fmt(popped)}`,R*.6,top0*.74);
 }
 function drawBottom(){
   ctx.strokeStyle='rgba(255,210,74,.45)';ctx.setLineDash([R*.3,R*.25]);ctx.lineWidth=2;

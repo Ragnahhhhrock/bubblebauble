@@ -141,7 +141,7 @@ const COLORS=[['#ff3b4f','#7a0612'],['#ffd24a','#8f5f00'],['#35d06a','#0b5426'],
 let W,H,R,RH,DPR,SP,sprites=[],grid=[],top0,dropRows=0,shots=0,shotsPerDrop=6,score=0,level=1,nColors=3;
 let cur=0,nxt=1,shot=null,aim=-Math.PI/2,aiming=false,parts=[],falls=[],snow=[],state='title',deadY,lx,ly,muted=false,t=0,paused=false;
 let demo=false,botT=null,botWait=1,botHold=0,demoN=0;const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
-let loadT=0,LOAD=.32,cheerT=0,bubbles=[],danger=false,celebrate=false,sad=false;
+let lvlT=0,lvlUp=false,loadT=0,LOAD=.32,cheerT=0,bubbles=[],danger=false,celebrate=false,sad=false;
 const LINES={pop:['Nice!','Pop!','Jolly good!','Sparkly!','Ooh!'],big:['Ho ho ho!','Avalanche!','Brilliant!','Wow!','Magic!'],drop:['Watch out!','Uh oh!','It\'s coming down!'],danger:['Careful!','Eek!','Hurry!'],win:['Hooray!','Merry Christmas!','You did it!'],lose:['Oh no…','Humbug!'],start:['Let\'s go!','Load her up!','Ready!']};
 const rnd=a=>a[Math.random()*a.length|0];
 function say(who,k){bubbles=bubbles.filter(b=>b.who!==who);bubbles.push({who,text:rnd(LINES[k]),life:1.4})}
@@ -212,7 +212,7 @@ function startLevel(n,isDemo){
   for(let r=0;r<rows;r++)grid.push(Array.from({length:rowLen(r)},()=>Math.random()*nColors|0));
   for(let k=0;k<2;k++)each((r,c)=>{if(Math.random()<.4){const nb=nbrs(r,c).filter(([a,b])=>get(a,b)>=0);if(nb.length){const[a,b]=nb[Math.random()*nb.length|0];grid[r][c]=grid[a][b]}}});
   cur=pick();nxt=pick();state='play';loadT=0;cheerT=0;bubbles=[];danger=false;celebrate=false;sad=false;
-  say('L','start');demo=!!isDemo;botT=null;paused=false;$('ovPause').hidden=true;
+  say('L','start');demo=!!isDemo;lvlT=demo?0:2.2;lvlUp=!demo&&n>1;botT=null;paused=false;$('ovPause').hidden=true;
   if(!demo)['ovTitle','ovWin','ovLose'].forEach(id=>$(id).hidden=true);
 }
 function startDemo(){demoN++;startLevel([4,5,6,5,4,6][demoN%6],true);botWait=1.4}
@@ -439,6 +439,17 @@ function drawDemoTag(){
   ctx.fillStyle='rgba(255,210,74,.9)';ctx.font=`800 ${Math.round(top0*.34)}px Nunito,sans-serif`;ctx.textBaseline='middle';ctx.textAlign='center';
   ctx.fillText('DEMO',W/2,top0/2);
 }
+function drawLevelBanner(){
+  if(lvlT<=0||state!=='play')return;
+  const a=Math.min(1,lvlT/.6,(2.2-lvlT)/.25),k=reduce?1:.85+.15*Math.min(1,(2.2-lvlT)/.25);
+  ctx.save();ctx.globalAlpha=Math.max(0,a);ctx.translate(W/2,H*.4);ctx.scale(k,k);
+  ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineJoin='round';
+  if(lvlUp){ctx.font=`800 ${Math.round(W*.07)}px Nunito,sans-serif`;ctx.lineWidth=R*.25;ctx.strokeStyle='rgba(20,10,30,.75)';ctx.fillStyle='#7dff9a';
+    ctx.strokeText('LEVEL UP!',0,-W*.12);ctx.fillText('LEVEL UP!',0,-W*.12)}
+  ctx.font=`900 ${Math.round(W*.16)}px Nunito,sans-serif`;ctx.lineWidth=R*.4;ctx.strokeStyle='rgba(20,10,30,.75)';ctx.fillStyle='#ffd24a';
+  const t=`Level ${level}`;ctx.strokeText(t,0,0);ctx.fillText(t,0,0);
+  ctx.restore();
+}
 function drawHud(){
   ctx.fillStyle='#fff';ctx.font=`800 ${Math.round(top0*.36)}px Nunito,sans-serif`;ctx.textBaseline='middle';
   ctx.textAlign='left';ctx.fillText(`Score ${score}`,R*.6,top0*.36);
@@ -553,7 +564,7 @@ function update(dt){
   for(const s of snow){s.y+=s.v*dt;if(s.y>H){s.y=-4;s.x=Math.random()*W}}
   botStep(dt);
   if(shot)stepShot(dt);
-  loadT=Math.max(0,loadT-dt);cheerT=Math.max(0,cheerT-dt);
+  lvlT=Math.max(0,lvlT-dt);loadT=Math.max(0,loadT-dt);cheerT=Math.max(0,cheerT-dt);
   for(const b of bubbles)b.life-=dt;bubbles=bubbles.filter(b=>b.life>0);
   for(const p of parts){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=900*dt;p.life-=dt;p.rot+=dt*8}
   parts=parts.filter(p=>p.life>0);
@@ -571,7 +582,7 @@ function draw(){
   ctx.globalAlpha=1;
   if((aiming||(demo&&botT!=null))&&!shot&&state==='play')drawGuide();
   if(shot)drawB(shot.c,shot.x,shot.y);
-  drawLauncher();if(demo)drawDemoTag();else drawHud();
+  drawLauncher();if(demo)drawDemoTag();else{drawHud();drawLevelBanner()}
 }
 let last=performance.now();
 let pbShown=null;

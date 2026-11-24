@@ -63,6 +63,8 @@ h1{font:700 clamp(40px,13vw,64px)/1.05 'Mountains of Christmas',serif;margin:0;c
 h2{font:700 clamp(32px,10vw,46px)/1.05 'Mountains of Christmas',serif;margin:0;color:var(--gold)}
 p{margin:0;font-size:16px;line-height:1.5;max-width:30ch;opacity:.92}
 .small{font-size:14px;opacity:.75}
+.stat{font-size:18px;font-weight:800;opacity:1;color:#ffd24a;text-shadow:0 1px 3px rgba(0,0,0,.6);margin:6px 0}
+.stat:empty{display:none}
 button{font:800 18px Nunito,sans-serif;min-height:48px;padding:0 30px;border:0;border-radius:24px;background:var(--red);color:#fff;box-shadow:0 4px 0 #7a0612;cursor:pointer}
 button:active{transform:translateY(2px);box-shadow:0 2px 0 #7a0612}
 button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
@@ -96,8 +98,8 @@ a.cocoa:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
     <p>Drag to aim, release to fire. Match 3 or more baubles of a colour to shatter them. Tap the gift sack to swap.</p>
     <div class="row"><button id="play">Play</button><button id="hs" class="ghost">High scores</button></div>
     <p class="small" id="best"></p>
-    <p class="small" id="total"></p>
-    <p class="small" id="world"></p>
+    <p class="small stat" id="total"></p>
+    <p class="small stat" id="world"></p>
     <a class="cocoa" href="https://buy.stripe.com/3cI4gr1PPfcx4gU0UcaAw0c" target="_blank" rel="noopener"><span aria-hidden="true">☕🎄</span> Buy me a Cup of Hot Cocoa – $5</a>
   </div></div>
   <div class="ov" id="ovPause" hidden>
@@ -450,12 +452,24 @@ function drawLevelBanner(){
   const t=`Level ${level}`;ctx.strokeText(t,0,0);ctx.fillText(t,0,0);
   ctx.restore();
 }
+let popBump=0,lastPopped=0;
 function drawHud(){
+  if(popped!==lastPopped){if(popped>lastPopped)popBump=1;lastPopped=popped}
+  popBump=Math.max(0,popBump-.05);
   ctx.fillStyle='#fff';ctx.font=`800 ${Math.round(top0*.36)}px Nunito,sans-serif`;ctx.textBaseline='middle';
   ctx.textAlign='left';ctx.fillText(`Score ${score}`,R*.6,top0*.36);
   ctx.textAlign='right';ctx.fillText(`Level ${level}`,W-R*.6,top0*.36);
-  ctx.font=`800 ${Math.round(top0*.26)}px Nunito,sans-serif`;ctx.fillStyle='#ffd24a';
-  ctx.textAlign='left';ctx.fillText(`Popped ${fmt(popped)}`,R*.6,top0*.74);
+  // popped counter: dark pill, big gold number, small label, bumps on every pop
+  const fs=Math.round(top0*.42),lab=Math.round(top0*.24),num=fmt(popped),sc=1+popBump*.25;
+  ctx.save();ctx.font=`900 ${fs}px Nunito,sans-serif`;const nw=ctx.measureText(num).width;
+  ctx.font=`800 ${lab}px Nunito,sans-serif`;const lw=ctx.measureText('POPPED').width;
+  const pw=nw+lw+R*1.5,ph=top0*.62,px=R*.6,py=top0*.74;
+  ctx.translate(px,py);ctx.scale(sc,sc);
+  ctx.fillStyle='rgba(20,10,30,.72)';ctx.strokeStyle='#ffd24a';ctx.lineWidth=2;
+  ctx.beginPath();ctx.roundRect(0,-ph/2,pw,ph,ph/2);ctx.fill();ctx.stroke();
+  ctx.textAlign='left';ctx.fillStyle='#ffd24a';ctx.font=`800 ${lab}px Nunito,sans-serif`;ctx.fillText('POPPED',R*.5,0);
+  ctx.fillStyle='#fff';ctx.font=`900 ${fs}px Nunito,sans-serif`;ctx.fillText(num,R*.5+lw+R*.35,0);
+  ctx.restore();
 }
 function drawBottom(){
   ctx.strokeStyle='rgba(255,210,74,.45)';ctx.setLineDash([R*.3,R*.25]);ctx.lineWidth=2;

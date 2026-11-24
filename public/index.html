@@ -63,8 +63,6 @@ h1{font:700 clamp(40px,13vw,64px)/1.05 'Mountains of Christmas',serif;margin:0;c
 h2{font:700 clamp(32px,10vw,46px)/1.05 'Mountains of Christmas',serif;margin:0;color:var(--gold)}
 p{margin:0;font-size:16px;line-height:1.5;max-width:30ch;opacity:.92}
 .small{font-size:14px;opacity:.75}
-.stat{font-size:18px;font-weight:800;opacity:1;color:#ffd24a;text-shadow:0 1px 3px rgba(0,0,0,.6);margin:6px 0}
-.stat:empty{display:none}
 button{font:800 18px Nunito,sans-serif;min-height:48px;padding:0 30px;border:0;border-radius:24px;background:var(--red);color:#fff;box-shadow:0 4px 0 #7a0612;cursor:pointer}
 button:active{transform:translateY(2px);box-shadow:0 2px 0 #7a0612}
 button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
@@ -84,6 +82,28 @@ a.cocoa:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
 .board .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .board .lv{opacity:.7;font-weight:600;font-size:13px}
 .board .sc{font-variant-numeric:tabular-nums;text-align:right}
+#ovTitle .panel{width:min(100%,380px);gap:12px;padding:0;background:none;border:0;box-shadow:none;position:relative}
+.hero{width:96px;height:96px;filter:drop-shadow(0 0 22px rgba(255,210,74,.55));animation:bob 3s ease-in-out infinite}
+.fl{position:absolute;font-size:30px;filter:drop-shadow(0 0 8px rgba(255,255,255,.6));animation:bob 4s ease-in-out infinite;pointer-events:none}
+@keyframes pulse{50%{scale:1.035}}
+@keyframes bob{50%{transform:translateY(-8px)}}
+#ovTitle h1{text-shadow:0 3px 0 #7a0612,0 0 24px rgba(255,210,74,.45)}
+#tally{width:100%;display:grid;justify-items:center;gap:2px;padding:12px 16px 14px;border-radius:16px;background:linear-gradient(180deg,rgba(214,40,57,.2),rgba(6,11,28,.86) 70%);border:1px solid rgba(255,210,74,.55);box-shadow:0 0 28px rgba(255,210,74,.22),inset 0 1px 0 rgba(255,255,255,.06)}
+#tally:has(#wnum:empty){display:none}
+#tally .ic{font-size:20px;line-height:1}
+#wnum{font:700 clamp(44px,15vw,60px)/1 'Mountains of Christmas',serif;color:var(--gold);text-shadow:0 0 18px rgba(255,210,74,.6),0 3px 0 #7a0612;font-variant-numeric:tabular-nums}
+#wlab{font-size:15px;font-weight:800;color:var(--gold)}
+.legend{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;width:100%}
+.legend div{padding:10px 2px 8px;border-radius:16px;background:rgba(6,11,28,.84);border:1px solid rgba(255,210,74,.5);display:flex;flex-direction:column;align-items:center;gap:2px}
+.legend b{font:800 12px Nunito,sans-serif}.legend i{font:600 10px/1.2 Nunito,sans-serif;font-style:normal;opacity:.8}.legend span{font-size:24px}
+#play{animation:pulse 2s ease-in-out infinite;min-height:60px;width:min(100%,260px);font-size:26px;border-radius:30px;background:linear-gradient(#ef3b4c,#c01d2e);box-shadow:0 6px 0 #7a0612,0 0 24px rgba(214,40,57,.5)}
+#ovTitle .board li:nth-child(n+6){display:none}
+.hsbox{width:100%;padding:12px 16px 12px;border-radius:20px;background:rgba(6,11,28,.84);border:1px solid rgba(255,255,255,.1)}
+.hsbox h3{font:700 22px 'Mountains of Christmas',serif;color:var(--gold);margin:0 0 6px;text-align:left}
+.hsbox .board{width:100%}
+.hsbox .board li.me,.hsbox .board li.none{}
+.hsbox .more{margin-top:8px;min-height:36px;padding:0 16px;font-size:14px}
+@media (prefers-reduced-motion:reduce){.hero,.fl,#play{animation:none}}
 #mute{position:absolute;top:6px;left:50%;transform:translateX(-50%);min-height:44px;width:44px;padding:0;background:transparent;box-shadow:none;font-size:20px;opacity:.8}
 #pause{position:absolute;top:6px;left:calc(50% - 52px);transform:translateX(-50%);min-height:44px;width:44px;padding:0;background:transparent;box-shadow:none;font-size:20px;opacity:.8}
 </style>
@@ -94,12 +114,21 @@ a.cocoa:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
   <button id="mute" aria-label="Toggle sound">♪</button>
   <button id="pause" aria-label="Pause game" hidden>❚❚</button>
   <div class="ov lite" id="ovTitle"><div class="panel">
+    <span class="fl" style="top:6px;left:2%" aria-hidden="true">❄️</span><span class="fl" style="top:34px;right:2%;animation-delay:-1.5s" aria-hidden="true">⭐</span><span class="fl" style="top:96px;left:8%;font-size:22px;animation-delay:-2.5s" aria-hidden="true">🎄</span>
+    <svg class="hero" viewBox="0 0 100 100" aria-hidden="true"><rect x="40" y="6" width="20" height="12" rx="3" fill="#ffd24a"/><circle cx="50" cy="20" r="4" fill="none" stroke="#ffd24a" stroke-width="2"/><circle cx="50" cy="58" r="38" fill="#d62839"/><path d="M14 52c14 10 58 10 72 0M16 68c14 10 54 10 68 0" fill="none" stroke="#ffd24a" stroke-width="5" stroke-linecap="round" opacity=".9"/><ellipse cx="34" cy="38" rx="9" ry="14" fill="#fff" opacity=".4" transform="rotate(25 34 38)"/></svg>
     <h1>Bubble Bauble</h1>
-    <p>Drag to aim, release to fire. Match 3 or more baubles of a colour to shatter them. Tap the gift sack to swap.</p>
-    <div class="row"><button id="play">Play</button><button id="hs" class="ghost">High scores</button></div>
+    <p>Match baubles before they reach the mantel.</p>
+    <div id="tally"><div class="ic" aria-hidden="true">✨</div><div id="wnum"></div><div id="wlab"></div></div>
+    <div class="legend">
+      <div><span aria-hidden="true">👆</span><b>Aim</b><i>Drag, release</i></div>
+      <div style="border-color:rgba(214,40,57,.7)"><span aria-hidden="true">🔴</span><b>Match</b><i>3+ pop, +10</i></div>
+      <div style="border-color:rgba(60,200,100,.6)"><span aria-hidden="true">🎄</span><b>Drop</b><i>Floaters bonus</i></div>
+      <div><span aria-hidden="true">🎁</span><b>Swap</b><i>Tap the sack</i></div>
+      <div style="border-color:rgba(255,77,109,.6)"><span aria-hidden="true">🔥</span><b>Mantel</b><i>Don't cross</i></div>
+    </div>
+    <button id="play">Play</button>
     <p class="small" id="best"></p>
-    <p class="small stat" id="total"></p>
-    <p class="small stat" id="world"></p>
+    <div class="hsbox"><h3>World high scores</h3><ol class="board" id="boardT"></ol><button id="hs" class="ghost more">All scores</button></div>
     <a class="cocoa" href="https://buy.stripe.com/3cI4gr1PPfcx4gU0UcaAw0c" target="_blank" rel="noopener"><span aria-hidden="true">☕🎄</span> Buy me a Cup of Hot Cocoa – $5</a>
   </div></div>
   <div class="ov" id="ovPause" hidden>
@@ -151,13 +180,13 @@ let best=0,bestLevel=0,totalPopped=0,popped=0;
 try{best=+localStorage.getItem('bb_best')||0;bestLevel=+localStorage.getItem('bb_bestlevel')||0;totalPopped=+localStorage.getItem('bb_total')||0}catch(e){}
 const fmt=n=>n.toLocaleString('en-AU');
 const showBest=()=>{$('best').textContent=best?`Best score: ${fmt(best)} · Highest level: ${bestLevel||1}`:'';
-  $('total').textContent=totalPopped?`Total baubles popped: ${fmt(totalPopped)}`:''};showBest();
+  };showBest();
 // live worldwide tally (Cloudflare Worker at /api/tally): pops are batched and flushed every few seconds
 let pending=0,worldTotal=null,flushing=false;
 try{pending=+localStorage.getItem('bb_pending')||0}catch(e){}
-const showWorld=()=>{$('world').textContent=worldTotal==null?'':`Baubles popped worldwide: ${fmt(worldTotal)}`};
+const showWorld=()=>{const w=worldTotal!=null;$('wnum').textContent=w?fmt(worldTotal):totalPopped?fmt(totalPopped):'';$('wlab').textContent=w?'baubles popped worldwide':'baubles popped by you'};showWorld();
 function addPopped(n){if(demo||n<=0)return;popped+=n;totalPopped+=n;pending+=n;
-  try{localStorage.setItem('bb_total',totalPopped);localStorage.setItem('bb_pending',pending)}catch(e){}showBest()}
+  try{localStorage.setItem('bb_total',totalPopped);localStorage.setItem('bb_pending',pending)}catch(e){}showBest();showWorld()}
 async function flushTally(){
   if(flushing||pending<=0)return;flushing=true;const n=Math.min(pending,3000);
   try{const r=await fetch('/api/tally',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({n}),keepalive:true});
@@ -364,7 +393,7 @@ $('entry').addEventListener('submit',async e=>{
   }catch(err){$('save').disabled=false;$('msg').textContent=err.message||'Could not reach the score table. Try again.'}
 });
 $('hs').onclick=()=>{$('ovTitle').hidden=true;$('ovHS').hidden=false;loadBoard($('board2'))};
-$('back').onclick=()=>{$('ovHS').hidden=true;$('ovTitle').hidden=false;pollTally()};
+$('back').onclick=()=>{$('ovHS').hidden=true;$('ovTitle').hidden=false;pollTally();loadBoard($('boardT'))};
 function saveBest(){if(score>best){best=score;try{localStorage.setItem('bb_best',best)}catch(e){}}
   if(!demo&&level>bestLevel){bestLevel=level;try{localStorage.setItem('bb_bestlevel',bestLevel)}catch(e){}}showBest()}
 function boom(x,y,ci){for(let i=0;i<10;i++){const a=Math.random()*7,s=Math.random()*260+80;
@@ -606,7 +635,7 @@ function loop(now){const dt=Math.min(.033,(now-last)/1000);last=now;if(!paused)u
 new ResizeObserver(resize).observe(box);resize();
 if(!CanvasRenderingContext2D.prototype.roundRect)CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h){this.rect(x,y,w,h)};
 // demo board behind the title screen
-startDemo();$('ovTitle').hidden=false;
+startDemo();$('ovTitle').hidden=false;loadBoard($('boardT'));
 requestAnimationFrame(loop);
 }
 </script>
